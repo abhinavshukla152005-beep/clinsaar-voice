@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+tts_test.wav
+a.wav
+b.wav
+c.wav
+en.wav

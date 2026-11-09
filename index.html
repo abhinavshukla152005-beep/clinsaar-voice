@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ClinSaar Voice — Gnani-powered bilingual OPD intake</title>
+<style>
+  :root { --ink:#10243a; --muted:#5b6b7c; --line:#d7e2ec; --teal:#0f766e; --teal2:#0d9488; --bg:#f4f8fb; --warn:#b42318; --warnbg:#fef3f2; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:linear-gradient(120deg,#0b3d66,#0f766e); color:#fff; padding:20px 22px; }
+  header h1 { margin:0 0 4px; font-size:20px; letter-spacing:.2px; }
+  header p { margin:0; opacity:.9; font-size:13px; }
+  main { max-width:880px; margin:22px auto; padding:0 16px 60px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; box-shadow:0 1px 2px rgba(16,36,58,.04); }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 12px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; border:0; border-radius:10px; padding:10px 16px; cursor:pointer; }
+  .primary { background:var(--teal); color:#fff; }
+  .primary:disabled { opacity:.45; cursor:not-allowed; }
+  .ghost { background:#eef4f8; color:var(--ink); }
+  .mic { background:#0b3d66; color:#fff; display:flex; align-items:center; gap:8px; }
+  .mic.live { background:var(--warn); animation:pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity:.65; } }
+  textarea { width:100%; min-height:96px; border:1px solid var(--line); border-radius:10px; padding:12px; font:inherit; resize:vertical; }
+  select, input[type=text], input[type=number] { width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 10px; font:inherit; background:#fff; }
+  .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  @media (max-width:640px){ .grid { grid-template-columns:1fr; } }
+  label.field { display:block; font-size:12px; color:var(--muted); }
+  label.field span { display:block; margin-bottom:4px; font-weight:600; color:var(--ink); }
+  .flag { background:var(--warnbg); border:1px solid #fda29b; color:var(--warn); border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:14px; }
+  .note { font-size:12px; color:var(--muted); }
+  .models { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .chip { font-size:11px; background:#eef4f8; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:3px 9px; }
+  .chip.on { background:#e6f4f1; color:var(--teal); border-color:#99f6e4; }
+  .confirm { display:flex; gap:10px; align-items:flex-start; background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px; padding:12px; margin-top:14px; font-size:14px; }
+  .out { background:#0b1220; color:#d7e6f2; border-radius:10px; padding:14px; font-family:ui-monospace,Consolas,monospace; font-size:12.5px; white-space:pre-wrap; display:none; }
+  .pill { font-size:11px; background:#e6f4f1; color:var(--teal); padding:3px 8px; border-radius:999px; }
+  footer { text-align:center; color:var(--muted); font-size:12px; margin-top:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ClinSaar Voice</h1>
+  <p>Voice-first, bilingual OPD intake on Gnani Prisma + Timbre. The model collects facts — it never makes a diagnosis.</p>
+</header>
+
+<main>
+  <div class="card">
+    <h2>1 · Patient speaks</h2>
+    <div class="row" style="margin-bottom:12px">
+      <select id="lang" style="max-width:200px">
+        <option value="hi-IN">हिन्दी (hi-IN)</option>
+        <option value="en-IN">English (en-IN)</option>
+      </select>
+      <button id="mic" class="mic">🎙️ Start speaking</button>
+      <span id="status" class="note">Microphone idle</span>
+    </div>
+    <textarea id="transcript" placeholder="Hindi or English transcript appears here. You can also type a test sentence."></textarea>
+    <div class="row" style="margin-top:12px">
+      <button id="extract" class="primary">Extract intake fields</button>
+      <button id="readback" class="ghost">🔊 Read back (Gnani Timbre)</button>
+    </div>
+    <div class="models">
+      <span class="chip" id="sttchip">Prisma v2.5 · speech → text</span>
+      <span class="chip" id="ttschip">Timbre v2.5 · text → speech</span>
+    </div>
+    <p class="note" style="margin-top:10px">Your voice is sent to Gnani's Prisma model for transcription. No audio is stored on the server.</p>
+  </div>
+
+  <div class="card">
+    <h2>2 · Review &amp; correct <span class="pill">no diagnosis field</span></h2>
+    <div id="flagbox"></div>
+    <div class="grid" id="fields"></div>
+    <div class="confirm">
+      <input type="checkbox" id="confirm" />
+      <label for="confirm">I confirm these details are correct. Nothing is saved until I confirm.</label>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button id="save" class="primary" disabled>Save verified intake</button>
+      <span class="note" id="savestatus"></span>
+    </div>
+    <pre class="out" id="out"></pre>
+  </div>
+
+  <footer>ClinSaar Voice · demo · not for clinical use</footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const FIELD_DEFS = [
+  ["age", "Age", "number"],
+  ["sex", "Sex", "sex"],
+  ["chief_complaint", "Chief complaint", "text"],
+  ["duration", "Duration", "text"],
+  ["severity", "Severity", "severity"],
+  ["medications", "Medications", "text"],
+  ["allergies", "Allergies", "text"],
+];
+let current = {};
+
+function renderFields(vals) {
+  const box = $("fields");
+  box.innerHTML = "";
+  for (const [key, label, kind] of FIELD_DEFS) {
+    const wrap = document.createElement("label");
+    wrap.className = "field";
+    const span = document.createElement("span");
+    span.textContent = label;
+    wrap.appendChild(span);
+    let input;
+    if (kind === "sex" || kind === "severity") {
+      input = document.createElement("select");
+      const opts = kind === "sex" ? ["", "female", "male"] : ["", "mild", "moderate", "severe"];
+      for (const o of opts) {
+        const opt = document.createElement("option");
+        opt.value = o; opt.textContent = o || "—";
+        input.appendChild(opt);
+      }
+    } else {
+      input = document.createElement("input");
+      input.type = kind;
+      if (kind === "number") input.min = "0";
+    }
+    input.dataset.key = key;
+    input.value = vals[key] ?? "";
+    input.addEventListener("input", () => { current[key] = input.value; });
+    input.addEventListener("change", () => { current[key] = input.value; });
+    wrap.appendChild(input);
+    box.appendChild(wrap);
+  }
+}
+
+function renderFlags(flags) {
+  const box = $("flagbox");
+  box.innerHTML = "";
+  if (flags && flags.length) {
+    const d = document.createElement("div");
+    d.className = "flag";
+    d.textContent = "⚠️ Red flag detected (" + flags.join(", ") + "). Escalate to urgent care.";
+    box.appendChild(d);
+  }
+}
+
+function encodeWav(samples, rate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const str = (offset, text) => {
+    for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+  };
+  str(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  str(8, "WAVE");
+  str(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  str(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    offset += 2;
+  }
+  return new Blob([view], { type: "audio/wav" });
+}
+
+async function toWav16k(blob) {
+  const bytes = await blob.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const decoded = await ctx.decodeAudioData(bytes);
+  await ctx.close();
+  const rate = 16000;
+  const frames = Math.max(1, Math.ceil(decoded.duration * rate));
+  const offline = new OfflineAudioContext(1, frames, rate);
+  const source = offline.createBufferSource();
+  source.buffer = decoded;
+  source.connect(offline.destination);
+  source.start();
+  const rendered = await offline.startRendering();
+  return encodeWav(rendered.getChannelData(0), rate);
+}
+
+async function transcribe(wav) {
+  $("status").textContent = "Transcribing with Gnani Prisma…";
+  $("sttchip").classList.add("on");
+  const res = await fetch("/transcribe?lang=" + encodeURIComponent($("lang").value), {
+    method: "POST",
+    headers: { "Content-Type": "audio/wav" },
+    body: wav,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "transcription failed");
+  $("transcript").value = data.transcript;
+  $("status").textContent = data.model + " · " + data.latency_ms + " ms";
+  $("sttchip").textContent = data.model + " · speech → text";
+}
+
+let mediaRecorder = null, chunks = [], recording = false;
+$("mic").addEventListener("click", async () => {
+  if (recording) { mediaRecorder.stop(); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $("status").textContent = "Microphone unavailable — type a sentence instead.";
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      recording = false;
+      $("mic").classList.remove("live");
+      $("mic").textContent = "🎙️ Start speaking";
+      stream.getTracks().forEach(t => t.stop());
+      try {
+        const wav = await toWav16k(new Blob(chunks, { type: "audio/webm" }));
+        await transcribe(wav);
+      } catch (e) {
+        $("status").textContent = "Error: " + e.message;
+      }
+    };
+    mediaRecorder.start();
+    recording = true;
+    $("mic").classList.add("live");
+    $("mic").textContent = "⏹ Stop & transcribe";
+    $("status").textContent = "Listening…";
+  } catch (e) {
+    $("status").textContent = "Mic error: " + e.message;
+  }
+});
+
+$("extract").addEventListener("click", async () => {
+  const text = $("transcript").value.trim();
+  if (!text) { $("status").textContent = "Speak or type something first."; return; }
+  $("status").textContent = "Extracting…";
+  try {
+    const res = await fetch("/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, lang: $("lang").value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "extract failed");
+    current = Object.assign({}, data.fields);
+    renderFields(current);
+    renderFlags(data.fields.red_flags);
+    $("status").textContent = data.warnings.length ? data.warnings.join(" ") : "Extracted. Review the fields.";
+  } catch (e) {
+    $("status").textContent = "Error: " + e.message;
+  }
+});
+
+$("readback").addEventListener("click", async () => {
+  const parts = [];
+  if (current.age) parts.push(current.age + " saal");
+  if (current.chief_complaint) parts.push(current.chief_complaint);
+  if (current.duration) parts.push(current.duration);
+  if (!parts.length) { $("status").textContent = "Nothing to read back yet."; return; }
+  $("status").textContent = "Synthesising with Gnani Timbre…";
+  $("ttschip").classList.add("on");
+  try {
+    const res = await fetch("/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: parts.join(", "), lang: $("lang").value }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "speech synthesis failed");
+    }
+    const audio = new Audio(URL.createObjectURL(await res.blob()));
+    audio.play();
+    $("status").textContent = "Reading back with Timbre v2.5.";
+  } catch (e) {
+    $("status").textContent = "Error: " + e.message;
+  }
+});
+
+$("confirm").addEventListener("change", () => {
+  $("save").disabled = !$("confirm").checked;
+});
+
+$("save").addEventListener("click", () => {
+  const clean = { age: current.age ? Number(current.age) : null };
+  for (const [key] of FIELD_DEFS) if (key !== "age") clean[key] = current[key] || null;
+  clean.red_flags = (current.red_flags && current.red_flags.length) ? current.red_flags : [];
+  $("out").style.display = "block";
+  $("out").textContent = JSON.stringify(clean, null, 2);
+  $("savestatus").textContent = "Verified intake ready (demo: nothing persisted).";
+});
+</script>
+</body>
+</html>
