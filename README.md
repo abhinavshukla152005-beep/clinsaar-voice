@@ -8,7 +8,7 @@ Built for the **Great Indian AI Internship Challenge by Gnani.ai**.
 
 ![flow](docs/flow.svg)
 
-## Why it is not another chatbot
+## Why the safety is structural
 
 Outpatient intake is where Hindi-first and low-literacy patients get lost: they speak Hindi, the form
 is English, and a clerk retypes it. Voice intake fixes that — but the usual "AI intake" demo quietly
@@ -65,7 +65,7 @@ curl -s localhost:8787/health
 
 curl -s -X POST "localhost:8787/transcribe?lang=hi-IN" \
   -H "Content-Type: audio/wav" --data-binary @sample_hi.wav
-# {"transcript":"नमस्ते, मुझे तीन दिन से बुखार है।","model":"prisma-v2.5","latency_ms":154}
+# {"transcript":"नमस्ते, मुझे तीन दिन से बुखार है।","model":"prisma-v2.5","latency_ms":83}
 ```
 
 ## Demo script (2–3 min)

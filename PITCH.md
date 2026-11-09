@@ -8,7 +8,7 @@ AI that quietly invents a clinical conclusion, which is unsafe and unaccountable
 **What I built.** A voice-first, bilingual intake loop for a single patient utterance:
 
 1. The patient speaks one sentence in Hindi or English.
-2. **Gnani Prisma v2.5** transcribes it (REST, 16 kHz WAV, ~154 ms end-to-end in my tests).
+2. **Gnani Prisma v2.5** transcribes it (REST, 16 kHz WAV, 65–110 ms per call in my tests).
 3. The transcript fills a **closed intake schema** — age, sex, chief complaint, duration, severity,
    medications, allergies, red flags.
 4. **Gnani Timbre v2.5** reads the fields back in the patient's language (voice `Nalini`).

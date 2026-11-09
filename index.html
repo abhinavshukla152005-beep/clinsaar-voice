@@ -269,6 +269,21 @@ $("extract").addEventListener("click", async () => {
   }
 });
 
+const HI_WORDS = {
+  "fever": "बुखार", "headache": "सिरदर्द", "cough": "खांसी", "sore throat": "गले में दर्द",
+  "chest pain": "सीने में दर्द", "breathlessness": "सांस लेने में तकलीफ़",
+  "stomach pain": "पेट दर्द", "vomiting": "उल्टी", "dizziness": "चक्कर",
+  "days": "दिन", "weeks": "हफ़्ते", "months": "महीने", "hours": "घंटे",
+  "mild": "हल्का", "moderate": "मध्यम", "severe": "तेज़",
+};
+
+function readbackText(parts, lang) {
+  if (!lang.startsWith("hi")) return parts.join(", ");
+  return parts
+    .map(p => String(p).split(/\s+/).map(w => HI_WORDS[w.toLowerCase()] || w).join(" "))
+    .join(", ");
+}
+
 $("readback").addEventListener("click", async () => {
   const parts = [];
   if (current.age) parts.push(current.age + " saal");
@@ -281,7 +296,7 @@ $("readback").addEventListener("click", async () => {
     const res = await fetch("/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: parts.join(", "), lang: $("lang").value }),
+      body: JSON.stringify({ text: readbackText(parts, $("lang").value), lang: $("lang").value }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
