@@ -28,6 +28,9 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             with open(os.path.join(ROOT, "index.html"), "rb") as f:
                 self._send(200, f.read(), "text/html; charset=utf-8")
+        elif path == "/sample_hi.wav":
+            with open(os.path.join(ROOT, "sample_hi.wav"), "rb") as f:
+                self._send(200, f.read(), "audio/wav")
         elif path == "/health":
             self._send(200, json.dumps({
                 "ok": True,

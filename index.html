@@ -54,6 +54,7 @@
         <option value="en-IN">English (en-IN)</option>
       </select>
       <button id="mic" class="mic">🎙️ Start speaking</button>
+      <button id="sample" class="ghost">▶ Try sample clip</button>
       <span id="status" class="note">Microphone idle</span>
     </div>
     <textarea id="transcript" placeholder="Hindi or English transcript appears here. You can also type a test sentence."></textarea>
@@ -202,6 +203,18 @@ async function transcribe(wav) {
 }
 
 let mediaRecorder = null, chunks = [], recording = false;
+
+$("sample").addEventListener("click", async () => {
+  $("status").textContent = "Loading sample clip…";
+  try {
+    const clip = await fetch("/sample_hi.wav").then(r => r.blob());
+    $("lang").value = "hi-IN";
+    await transcribe(await toWav16k(clip));
+  } catch (e) {
+    $("status").textContent = "Error: " + e.message;
+  }
+});
+
 $("mic").addEventListener("click", async () => {
   if (recording) { mediaRecorder.stop(); return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
